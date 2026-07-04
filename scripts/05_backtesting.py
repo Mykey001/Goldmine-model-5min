@@ -47,7 +47,7 @@ test['prediction'] = model.predict(X_test)
 test['confidence'] = np.max(model.predict_proba(X_test), axis=1)
 
 # Filter for tradeable signals (confidence > 0.6)
-min_confidence = 0.6
+min_confidence = 0.5
 test['signal'] = test['prediction'].where(test['confidence'] >= min_confidence, -1)
 
 print(f'Total candles: {len(test):,}')
@@ -64,10 +64,10 @@ print('RUNNING BACKTEST')
 print('='*60)
 
 # Trading parameters
-TP_PIPS = 200
-SL_PIPS = 100
+TP_PIPS = 100
+SL_PIPS = 50
 PIP_VALUE = 0.01  # For XAUUSD
-LOT_SIZE = 0.3
+LOT_SIZE = 0.01
 DOLLARS_PER_PIP = 10 * LOT_SIZE  # Standard lot calculation
 
 # Initialize tracking
