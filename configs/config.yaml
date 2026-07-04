@@ -1,0 +1,145 @@
+# Goldmine ML Strategy Configuration
+
+# Data Configuration
+data:
+  symbol: "XAUUSDm"  # Trading symbol
+  timeframes: ["M1", "M3", "M5", "H1"]
+  train_split: 0.70
+  validation_split: 0.15
+  test_split: 0.15
+  min_history_days: 180  # Minimum 6 months
+  data_files:
+    M1: "data/raw/XAUUSDm_M1_202401012305_202607031457.csv"
+    M3: "data/raw/XAUUSDm_M3_202401012303_202607031457.csv"
+    M5: "data/raw/XAUUSDm_M5_202401012305_202607031500.csv"
+    H1: "data/raw/XAUUSDm_H1_202401012300_202607031500.csv"
+  
+# Strategy Parameters (from original MQL5 EA)
+strategy:
+  rsi:
+    period: 14
+    oversold: 35.0
+    overbought: 65.0
+  ema:
+    period: 50
+    timeframe: "H1"
+  volume_profile:
+    lookback_hours: 24
+    bins: 100
+  risk:
+    daily_profit_target: 10.0  # USD
+    daily_loss_limit: 400.0    # USD
+    lots_per_position: 0.1
+    positions_per_signal: 3     # Triple entry
+  execution:
+    reverse_signals: true       # Core contrarian principle
+    require_multi_tf_alignment: true
+
+# Feature Engineering
+features:
+  technical_indicators:
+    - "RSI"
+    - "EMA"
+    - "ATR"
+    - "MACD"
+    - "Bollinger_Bands"
+  custom_features:
+    - "swing_highs_lows"
+    - "volume_profile_poc"
+    - "price_vs_poc"
+    - "price_vs_ema"
+    - "multi_tf_alignment"
+  temporal_features:
+    - "hour_of_day"
+    - "day_of_week"
+    - "trading_session"
+  
+# Model Configuration
+model:
+  type: "xgboost"  # Options: xgboost, lightgbm, random_forest, lstm
+  task: "classification"  # Options: classification, regression
+  target:
+    type: "multi_class"  # Options: binary, multi_class
+    classes: ["STRONG_SELL", "WEAK_SELL", "NEUTRAL", "WEAK_BUY", "STRONG_BUY"]
+  
+  # XGBoost hyperparameters
+  xgboost:
+    n_estimators: 1000
+    max_depth: 8
+    learning_rate: 0.01
+    subsample: 0.8
+    colsample_bytree: 0.8
+    gamma: 0.1
+    min_child_weight: 5
+    objective: "multi:softprob"
+    eval_metric: "mlogloss"
+    early_stopping_rounds: 50
+    
+  # Training parameters
+  training:
+    cv_folds: 5
+    cv_method: "time_series"  # Walk-forward
+    optimize_hyperparameters: true
+    optimization_trials: 100
+    random_seed: 42
+
+# Evaluation Metrics
+evaluation:
+  classification_metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "roc_auc"
+    - "confusion_matrix"
+  trading_metrics:
+    - "win_rate"
+    - "profit_factor"
+    - "sharpe_ratio"
+    - "sortino_ratio"
+    - "max_drawdown"
+    - "avg_profit_per_trade"
+    - "total_trades"
+  thresholds:
+    min_accuracy: 0.70
+    min_precision: 0.65
+    min_profit_factor: 1.5
+    max_drawdown: 0.20
+
+# Backtesting
+backtesting:
+  initial_balance: 10000
+  commission_per_trade: 0.0  # USD (zero commission)
+  slippage_pips: 2.0  # 2 pip spread
+  include_costs: true
+  walk_forward:
+    train_window_days: 180
+    test_window_days: 30
+    step_days: 7
+
+# Logging and Output
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  save_logs: true
+  log_dir: "logs/"
+  
+output:
+  save_predictions: true
+  save_feature_importance: true
+  save_model_checkpoints: true
+  checkpoint_frequency: 10  # epochs
+  visualizations:
+    - "confusion_matrix"
+    - "roc_curve"
+    - "feature_importance"
+    - "equity_curve"
+    - "drawdown_plot"
+    - "trade_distribution"
+
+# Deployment
+deployment:
+  model_format: "pkl"  # Options: pkl, onnx, h5
+  inference_latency_ms: 1000  # Max acceptable latency
+  confidence_threshold: 0.75  # Minimum prediction confidence
+  mt5_integration: false
+  standalone_prediction: true  # Standalone prediction mode
