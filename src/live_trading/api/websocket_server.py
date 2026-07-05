@@ -18,6 +18,7 @@ class WebSocketManager:
     def __init__(self):
         """Initialize WebSocket manager"""
         self.active_connections: Set[WebSocket] = set()
+        self.pending_signals: list = []  # Thread-safe signal queue
         self.logger = logging.getLogger(__name__)
         self.logger.info("WebSocket manager initialized")
     

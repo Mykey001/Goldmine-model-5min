@@ -43,14 +43,22 @@ class SignalGenerator:
         """Load feature names for prediction"""
         feature_file = 'data/features/feature_names.json'
         
+        # Define the exact features used in training (exclude raw OHLCV columns)
+        exclude_cols = ['date', 'time', 'open', 'high', 'low', 'close', 
+                       'tickvol', 'vol', 'spread', 'real_volume', 'timestamp']
+        
         if os.path.exists(feature_file):
             try:
                 with open(feature_file, 'r') as f:
-                    self.feature_cols = json.load(f)
-                self.logger.info(f"Loaded {len(self.feature_cols)} feature names")
+                    all_cols = json.load(f)
+                # Filter out excluded columns
+                self.feature_cols = [c for c in all_cols if c not in exclude_cols]
+                self.logger.info(f"Loaded {len(self.feature_cols)} feature names (filtered from {len(all_cols)} total)")
             except Exception as e:
                 self.logger.warning(f"Failed to load feature names: {e}")
                 self.feature_cols = []
+        else:
+            self.logger.warning(f"Feature names file not found: {feature_file}")
     
     def compute_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -114,6 +122,7 @@ class SignalGenerator:
             df['hour'] = df['timestamp'].dt.hour
             df['day_of_week'] = df['timestamp'].dt.dayofweek
             df['day_of_month'] = df['timestamp'].dt.day
+            df['week_of_year'] = df['timestamp'].dt.isocalendar().week
             
             # Trading sessions (UTC)
             df['session_asian'] = ((df['hour'] >= 0) & (df['hour'] < 8)).astype(int)
@@ -159,6 +168,13 @@ class SignalGenerator:
             
             # Handle NaN values
             feature_values = np.nan_to_num(feature_values, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # Validate feature count
+            expected_features = self.model.n_features_in_ if hasattr(self.model, 'n_features_in_') else len(self.feature_cols)
+            if feature_values.shape[1] != expected_features:
+                self.logger.error(f"Feature shape mismatch, expected: {expected_features}, got {feature_values.shape[1]}")
+                self.logger.error(f"Available features: {list(self.feature_cols)}")
+                return -1, 0.0
             
             # Make prediction
             prediction = self.model.predict(feature_values)[0]

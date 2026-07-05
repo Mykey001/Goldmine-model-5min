@@ -273,14 +273,21 @@ class LiveTradingBot:
                 'was_executed': False,
             })
             
-            # Emit signal to frontend via WebSocket
+            # Emit signal to frontend via WebSocket (sync call)
             if self.ws_manager:
-                asyncio.create_task(self.ws_manager.emit_new_signal({
-                    'signal': signal_name,
-                    'confidence': confidence,
-                    'symbol': self.current_symbol,
-                    'timestamp': datetime.now().isoformat()
-                }))
+                try:
+                    # Use thread-safe sync wrapper instead of asyncio.create_task
+                    import threading
+                    signal_data = {
+                        'signal': signal_name,
+                        'confidence': confidence,
+                        'symbol': self.current_symbol,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    # Store for pickup by async websocket handler
+                    self.ws_manager.pending_signals.append(signal_data)
+                except Exception as ws_error:
+                    self.logger.warning(f"Could not queue WebSocket signal: {ws_error}")
             
             # Execute trade if valid signal
             if signal in [0, 1]:
