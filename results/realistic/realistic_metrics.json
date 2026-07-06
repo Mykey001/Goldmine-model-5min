@@ -1,0 +1,27 @@
+{
+  "configuration": {
+    "spread_pips": 2,
+    "entry_slippage_pips": 1,
+    "exit_slippage_pips": 0.5,
+    "commission_per_lot": 0
+  },
+  "total_trades": 86738,
+  "winning_trades": 37961,
+  "losing_trades": 48777,
+  "win_rate": 43.765131776153474,
+  "gross_profit": 370119.75,
+  "gross_loss": 256079.25,
+  "net_profit": 114040.5,
+  "profit_factor": 1.4453328412981528,
+  "total_spread_cost": 17347.6,
+  "total_slippage_cost": 13010.699999999995,
+  "total_costs": 30358.299999999996,
+  "first_touch_cases": 42071,
+  "tp_first_count": 22602,
+  "sl_first_count": 19469,
+  "max_drawdown": -304.5,
+  "max_drawdown_pct": -0.24543981686723682,
+  "sharpe_ratio": 2.0088187422701926,
+  "final_equity": 124040.5,
+  "return_pct": 1140.405
+}
