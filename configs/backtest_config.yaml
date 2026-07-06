@@ -1,0 +1,56 @@
+# Goldmine ML Backtest Configuration
+# Configure backtest parameters and filters
+
+# ============================================================================
+# TREND FILTER SETTINGS
+# ============================================================================
+trend_filter:
+  enabled: true                    # Enable/disable H1 trend filter
+  h1_ema_period: 200              # H1 EMA period for trend determination
+  
+  # Filter logic:
+  # - When enabled, only takes BUY signals when price is above H1 EMA (uptrend)
+  # - Only takes SELL signals when price is below H1 EMA (downtrend)
+  # - This aligns M5 entries with the broader H1 trend direction
+
+# ============================================================================
+# SIGNAL SETTINGS
+# ============================================================================
+signals:
+  min_confidence: 0.5             # Minimum model confidence to take a trade (0.0-1.0)
+  
+# ============================================================================
+# RISK MANAGEMENT
+# ============================================================================
+risk_management:
+  tp_pips: 100                    # Take profit in pips
+  sl_pips: 50                     # Stop loss in pips
+  lot_size: 0.01                  # Position size in lots
+  pip_value: 0.01                 # Pip value for XAUUSD
+  starting_capital: 10000         # Starting equity in dollars
+  
+# ============================================================================
+# ADVANCED FILTERS (Future Implementation)
+# ============================================================================
+advanced_filters:
+  # Add more filters here as needed
+  use_adx_filter: false           # Only trade when ADX > threshold
+  adx_threshold: 25               # ADX threshold for trend strength
+  
+  use_session_filter: false       # Only trade during specific sessions
+  allowed_sessions:               # Trading sessions to allow
+    - european
+    - us
+  
+  use_volatility_filter: false    # Only trade when volatility is within range
+  min_atr: 0.5                    # Minimum ATR
+  max_atr: 5.0                    # Maximum ATR
+
+# ============================================================================
+# OUTPUT SETTINGS
+# ============================================================================
+output:
+  save_trade_log: true            # Save detailed trade log
+  save_equity_curve: true         # Save equity curve chart
+  save_metrics: true              # Save performance metrics JSON
+  verbose: true                   # Print detailed progress
