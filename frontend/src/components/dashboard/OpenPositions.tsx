@@ -45,17 +45,17 @@ export const OpenPositions: React.FC = () => {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-white text-lg">
-                    {position.symbol}
+                    {position.symbol ?? 'N/A'}
                   </span>
                   <Badge
                     variant={position.direction === 'BUY' ? 'success' : 'danger'}
                   >
-                    {position.direction}
+                    {position.direction ?? 'N/A'}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xl font-bold ${getProfitColor(position.profit || 0)}`}>
-                    {formatCurrency(position.profit || 0)}
+                  <span className={`text-xl font-bold ${getProfitColor(position.profit ?? 0)}`}>
+                    {formatCurrency(position.profit ?? 0)}
                   </span>
                   <Button
                     size="sm"
@@ -73,32 +73,32 @@ export const OpenPositions: React.FC = () => {
                 <div>
                   <span className="text-slate-400">Entry:</span>
                   <span className="text-white ml-2 font-mono">
-                    {formatPrice(position.entry_price || 0, 2)}
+                    {formatPrice(position.entry_price ?? 0, 2)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400">Current:</span>
                   <span className="text-white ml-2 font-mono">
-                    {formatPrice(position.current_price || 0, 2)}
+                    {formatPrice(position.current_price ?? 0, 2)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400">TP:</span>
                   <span className="text-green-400 ml-2 font-mono">
-                    {formatPrice(position.tp || 0, 2)}
+                    {formatPrice(position.tp ?? 0, 2)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400">SL:</span>
                   <span className="text-red-400 ml-2 font-mono">
-                    {formatPrice(position.sl || 0, 2)}
+                    {formatPrice(position.sl ?? 0, 2)}
                   </span>
                 </div>
               </div>
 
               <div className="mt-2 text-xs text-slate-400 flex justify-between items-center">
-                <span>Vol: {position.volume}</span>
-                <span>Opened {formatRelativeTime(position.open_time)}</span>
+                <span>Vol: {position.volume ?? 0}</span>
+                <span>Opened {position.open_time ? formatRelativeTime(position.open_time) : 'N/A'}</span>
               </div>
             </div>
           ))}

@@ -212,6 +212,8 @@ async def get_account_info(bot=Depends(get_trading_bot)):
 @app.get("/api/positions/open", response_model=List[PositionInfo], tags=["Positions"])
 async def get_open_positions(bot=Depends(get_trading_bot)):
     """Get all open positions"""
+    if bot.executor is None:
+        return []  # Return empty list if executor not initialized yet
     positions = bot.executor.get_open_positions()
     return [PositionInfo(**p) for p in positions]
 
@@ -219,6 +221,9 @@ async def get_open_positions(bot=Depends(get_trading_bot)):
 @app.post("/api/positions/close", response_model=APIResponse, tags=["Positions"])
 async def close_position(request: ClosePositionRequest, bot=Depends(get_trading_bot)):
     """Close specific position"""
+    if bot.executor is None:
+        raise HTTPException(status_code=503, detail="Trading system not fully initialized yet")
+    
     result = bot.executor.close_position(request.ticket)
     
     if result['success']:
@@ -234,6 +239,9 @@ async def close_position(request: ClosePositionRequest, bot=Depends(get_trading_
 @app.post("/api/positions/modify", response_model=APIResponse, tags=["Positions"])
 async def modify_position(request: ModifyPositionRequest, bot=Depends(get_trading_bot)):
     """Modify position TP/SL"""
+    if bot.executor is None:
+        raise HTTPException(status_code=503, detail="Trading system not fully initialized yet")
+    
     result = bot.executor.modify_position(request.ticket, request.sl, request.tp)
     
     if result['success']:
@@ -249,6 +257,9 @@ async def modify_position(request: ModifyPositionRequest, bot=Depends(get_tradin
 @app.post("/api/positions/close_all", response_model=APIResponse, tags=["Positions"])
 async def close_all_positions(bot=Depends(get_trading_bot)):
     """Emergency: Close all open positions"""
+    if bot.executor is None:
+        raise HTTPException(status_code=503, detail="Trading system not fully initialized yet")
+    
     result = bot.executor.close_all_positions()
     
     return APIResponse(

@@ -41,19 +41,16 @@ class SignalGenerator:
     
     def _load_feature_names(self):
         """Load feature names for prediction"""
-        feature_file = 'data/features/feature_names.json'
-        
-        # Define the exact features used in training (exclude raw OHLCV columns)
-        exclude_cols = ['date', 'time', 'open', 'high', 'low', 'close', 
-                       'tickvol', 'vol', 'spread', 'real_volume', 'timestamp']
+        # Use path relative to project root (2 levels up from src/live_trading)
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        feature_file = os.path.join(project_root, 'data', 'features', 'feature_names.json')
         
         if os.path.exists(feature_file):
             try:
                 with open(feature_file, 'r') as f:
-                    all_cols = json.load(f)
-                # Filter out excluded columns
-                self.feature_cols = [c for c in all_cols if c not in exclude_cols]
-                self.logger.info(f"Loaded {len(self.feature_cols)} feature names (filtered from {len(all_cols)} total)")
+                    self.feature_cols = json.load(f)
+                self.logger.info(f"Loaded {len(self.feature_cols)} feature names from {feature_file}")
             except Exception as e:
                 self.logger.warning(f"Failed to load feature names: {e}")
                 self.feature_cols = []
