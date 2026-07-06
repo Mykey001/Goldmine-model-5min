@@ -11,6 +11,64 @@ import os
 class TradeExecutor:
     """Execute and manage MT5 trades"""
     
+    # Symbol-specific pip size configuration
+    # Note: For gold, 1 pip = 10 points on most platforms (50 pips = 500 points = $5.00)
+    SYMBOL_PIP_SIZES = {
+        # Gold (1 pip = 10 points = $0.10)
+        'XAUUSD': 0.1,
+        'XAUUSDm': 0.1,
+        'GOLD': 0.1,
+        
+        # Silver
+        'XAGUSD': 0.001,
+        'XAGUSDm': 0.001,
+        'SILVER': 0.001,
+        
+        # JPY pairs (2 decimal places)
+        'USDJPY': 0.01,
+        'EURJPY': 0.01,
+        'GBPJPY': 0.01,
+        'AUDJPY': 0.01,
+        'NZDJPY': 0.01,
+        'CADJPY': 0.01,
+        'CHFJPY': 0.01,
+        
+        # Most forex pairs (4 decimal places)
+        'EURUSD': 0.0001,
+        'GBPUSD': 0.0001,
+        'AUDUSD': 0.0001,
+        'NZDUSD': 0.0001,
+        'USDCAD': 0.0001,
+        'USDCHF': 0.0001,
+        'EURGBP': 0.0001,
+        'EURAUD': 0.0001,
+        'EURNZD': 0.0001,
+        'EURCAD': 0.0001,
+        'EURCHF': 0.0001,
+        'GBPAUD': 0.0001,
+        'GBPNZD': 0.0001,
+        'GBPCAD': 0.0001,
+        'GBPCHF': 0.0001,
+        'AUDNZD': 0.0001,
+        'AUDCAD': 0.0001,
+        'AUDCHF': 0.0001,
+        'NZDCAD': 0.0001,
+        'NZDCHF': 0.0001,
+        'CADCHF': 0.0001,
+        
+        # Indices (typically 1 point = 1 pip)
+        'US30': 1.0,
+        'US100': 1.0,
+        'US500': 0.1,
+        'GER40': 1.0,
+        'UK100': 1.0,
+        'JPN225': 1.0,
+        
+        # Crypto (varies)
+        'BTCUSD': 1.0,
+        'ETHUSD': 0.1,
+    }
+    
     def __init__(self, symbol: str = 'XAUUSDm'):
         """
         Initialize trade executor
@@ -22,15 +80,63 @@ class TradeExecutor:
         self.symbol = symbol
         
         # Trading parameters from environment
-        self.pip_value = float(os.getenv('PIP_VALUE', 0.01))
         self.tp_pips = float(os.getenv('TP_PIPS', 100))
         self.sl_pips = float(os.getenv('SL_PIPS', 50))
         self.lot_size = float(os.getenv('DEFAULT_LOT_SIZE', 0.01))
         self.magic = 123456  # EA identifier
         self.deviation = 20  # Max slippage in pips
         
+        # Auto-detect pip value based on symbol
+        self.pip_value = self._detect_pip_value(symbol)
+        
         self.logger.info(f"Trade executor initialized for {symbol}")
-        self.logger.info(f"TP: {self.tp_pips} pips | SL: {self.sl_pips} pips | Lot: {self.lot_size}")
+        self.logger.info(f"Pip value: {self.pip_value} | TP: {self.tp_pips} pips ({self.tp_pips * self.pip_value} points) | SL: {self.sl_pips} pips ({self.sl_pips * self.pip_value} points) | Lot: {self.lot_size}")
+    
+    def _detect_pip_value(self, symbol: str) -> float:
+        """
+        Auto-detect pip value based on symbol
+        
+        Args:
+            symbol: Trading symbol
+        
+        Returns:
+            Pip value for the symbol
+        """
+        # Clean symbol name (remove suffixes like 'm', '.raw', etc.)
+        clean_symbol = symbol.upper()
+        for suffix in ['M', '.RAW', '.', '_']:
+            if suffix in clean_symbol:
+                clean_symbol = clean_symbol.split(suffix)[0]
+        
+        # Check direct match first
+        if symbol.upper() in self.SYMBOL_PIP_SIZES:
+            pip_value = self.SYMBOL_PIP_SIZES[symbol.upper()]
+            self.logger.info(f"Pip value detected for {symbol}: {pip_value}")
+            return pip_value
+        
+        # Check cleaned symbol
+        if clean_symbol in self.SYMBOL_PIP_SIZES:
+            pip_value = self.SYMBOL_PIP_SIZES[clean_symbol]
+            self.logger.info(f"Pip value detected for {symbol} (cleaned: {clean_symbol}): {pip_value}")
+            return pip_value
+        
+        # Fallback rules based on symbol patterns
+        if 'JPY' in clean_symbol or 'HUF' in clean_symbol:
+            self.logger.warning(f"JPY/HUF pair detected for {symbol}, using pip value: 0.01")
+            return 0.01
+        elif 'XAU' in clean_symbol or 'GOLD' in clean_symbol:
+            self.logger.warning(f"Gold symbol detected for {symbol}, using pip value: 0.1 (1 pip = 10 points)")
+            return 0.1
+        elif 'XAG' in clean_symbol or 'SILVER' in clean_symbol:
+            self.logger.warning(f"Silver symbol detected for {symbol}, using pip value: 0.001")
+            return 0.001
+        elif 'BTC' in clean_symbol or 'ETH' in clean_symbol:
+            self.logger.warning(f"Crypto symbol detected for {symbol}, using pip value: 1.0")
+            return 1.0
+        else:
+            # Default to standard forex (4 decimal places)
+            self.logger.warning(f"Unknown symbol {symbol}, defaulting to standard forex pip value: 0.0001")
+            return 0.0001
     
     def set_symbol(self, symbol: str):
         """
@@ -40,7 +146,8 @@ class TradeExecutor:
             symbol: New symbol name
         """
         self.symbol = symbol
-        self.logger.info(f"Symbol changed to {symbol}")
+        self.pip_value = self._detect_pip_value(symbol)
+        self.logger.info(f"Symbol changed to {symbol} | Pip value: {self.pip_value}")
     
     def open_position(self, signal: int, confidence: float) -> Dict:
         """
