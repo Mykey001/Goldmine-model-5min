@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Settings, ChevronLeft, ChevronRight, Activity, TestTube } from 'lucide-react';
 import { Header } from './components/layout/Header';
 import { MetricsOverview } from './components/dashboard/MetricsOverview';
 import { EquityCurve } from './components/dashboard/EquityCurve';
 import { OpenPositions } from './components/dashboard/OpenPositions';
 import { SignalHistory } from './components/dashboard/SignalHistory';
 import { TradeHistory } from './components/dashboard/TradeHistory';
+import { BacktestPanel } from './components/dashboard/BacktestPanel';
 import { ConnectionPanel } from './components/controls/ConnectionPanel';
 import { SettingsPanel } from './components/controls/SettingsPanel';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -22,8 +23,11 @@ const queryClient = new QueryClient({
   },
 });
 
+type TabType = 'live' | 'backtest';
+
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('live');
 
   // Initialize WebSocket connection
   useWebSocket();
@@ -73,32 +77,66 @@ function AppContent() {
           </button>
         )}
 
+        {/* Tab Navigation */}
+        <div className="bg-slate-800 border-b border-slate-700 px-6">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('live')}
+              className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors border-b-2 ${
+                activeTab === 'live'
+                  ? 'text-blue-400 border-blue-400'
+                  : 'text-slate-400 border-transparent hover:text-slate-300'
+              }`}
+            >
+              <Activity size={20} />
+              Live Trading
+            </button>
+            <button
+              onClick={() => setActiveTab('backtest')}
+              className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors border-b-2 ${
+                activeTab === 'backtest'
+                  ? 'text-blue-400 border-blue-400'
+                  : 'text-slate-400 border-transparent hover:text-slate-300'
+              }`}
+            >
+              <TestTube size={20} />
+              Backtest
+            </button>
+          </div>
+        </div>
+
         <main className="flex-1 overflow-y-auto">
           <div className="container mx-auto px-6 py-8">
-            {/* Metrics Overview */}
-            <div className="mb-8 animate-fade-in">
-              <MetricsOverview />
-            </div>
+            {activeTab === 'live' ? (
+              <>
+                {/* Metrics Overview */}
+                <div className="mb-8 animate-fade-in">
+                  <MetricsOverview />
+                </div>
 
-            {/* Equity Curve */}
-            <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <EquityCurve />
-            </div>
+                {/* Equity Curve */}
+                <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                  <EquityCurve />
+                </div>
 
-            {/* Open Positions and Signal History */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                <OpenPositions />
-              </div>
-              <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
-                <SignalHistory />
-              </div>
-            </div>
+                {/* Open Positions and Signal History */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                    <OpenPositions />
+                  </div>
+                  <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                    <SignalHistory />
+                  </div>
+                </div>
 
-            {/* Trade History */}
-            <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <TradeHistory />
-            </div>
+                {/* Trade History */}
+                <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                  <TradeHistory />
+                </div>
+              </>
+            ) : (
+              <BacktestPanel />
+            )}
           </div>
         </main>
 

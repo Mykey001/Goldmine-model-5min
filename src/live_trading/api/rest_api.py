@@ -5,7 +5,7 @@ import os
 import logging
 from datetime import datetime, date
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -21,6 +21,7 @@ from .models import (
 trading_bot = None
 terminal_manager = None
 db_manager = None
+backtest_engine = None
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -63,6 +64,13 @@ def get_db_manager():
     if db_manager is None:
         raise HTTPException(status_code=503, detail="Database not initialized")
     return db_manager
+
+
+def get_backtest_engine():
+    """Dependency to get backtest engine instance"""
+    if backtest_engine is None:
+        raise HTTPException(status_code=503, detail="Backtest engine not initialized")
+    return backtest_engine
 
 
 # ===== EXCEPTION HANDLERS =====
@@ -415,6 +423,147 @@ async def update_config(request: ConfigUpdateRequest, bot=Depends(get_trading_bo
     )
 
 
+# ===== BACKTEST =====
+
+@app.post("/api/backtest/run", response_model=dict, tags=["Backtest"])
+async def run_backtest(
+    symbol: str,
+    start_date: str,
+    end_date: str,
+    use_h1_filter: bool = True,
+    h1_ema_period: int = 200,
+    min_confidence: float = 0.5,
+    tp_pips: int = 100,
+    sl_pips: int = 50,
+    lot_size: float = 0.01,
+    starting_capital: float = 10000,
+    use_volatility_filter: bool = False,
+    min_atr: float = 0.5,
+    max_atr: float = 5.0,
+    bt=Depends(get_backtest_engine)
+):
+    """Run backtest with custom parameters
+    
+    This endpoint fetches fresh data, calculates features, generates signals,
+    and runs a complete backtest simulation.
+    """
+    try:
+        # Parse dates
+        try:
+            start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            
+            # Convert to naive datetime (remove timezone) - MT5 requires this
+            if start.tzinfo is not None:
+                start = start.replace(tzinfo=None)
+            if end.tzinfo is not None:
+                end = end.replace(tzinfo=None)
+                
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+        
+        # Validate date range
+        if start >= end:
+            raise HTTPException(status_code=400, detail="Start date must be before end date")
+        
+        # Build config
+        config = {
+            'use_h1_filter': use_h1_filter,
+            'h1_ema_period': h1_ema_period,
+            'min_confidence': min_confidence,
+            'tp_pips': tp_pips,
+            'sl_pips': sl_pips,
+            'lot_size': lot_size,
+            'pip_value': 0.01,
+            'starting_capital': starting_capital,
+            'use_volatility_filter': use_volatility_filter,
+            'min_atr': min_atr,
+            'max_atr': max_atr
+        }
+        
+        logger.info(f"Running backtest for {symbol} from {start_date} to {end_date}")
+        
+        # Run backtest
+        results = bt.full_backtest(symbol, start, end, config)
+        
+        if not results.get('success', False):
+            error_msg = results.get('error', 'Backtest failed')
+            logger.error(f"Backtest failed: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        logger.info(f"Backtest completed successfully: {results.get('metrics', {}).get('total_trades', 0)} trades")
+        return results
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Backtest error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/backtest/status", response_model=dict, tags=["Backtest"])
+async def backtest_status():
+    """Get backtest engine status"""
+    return {
+        "available": backtest_engine is not None,
+        "model_loaded": backtest_engine.model is not None if backtest_engine else False
+    }
+
+
+@app.post("/api/backtest/export/csv", response_model=dict, tags=["Backtest"])
+async def export_backtest_csv(data: dict):
+    """Export backtest results to CSV"""
+    try:
+        import pandas as pd
+        from pathlib import Path
+        
+        logger.info(f"Export request received with keys: {list(data.keys())}")
+        
+        # Create exports directory if it doesn't exist
+        export_dir = Path("results/exports")
+        export_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Export directory: {export_dir.absolute()}")
+        
+        # Extract trades from the results
+        trades = data.get('trades', [])
+        logger.info(f"Number of trades to export: {len(trades)}")
+        
+        if len(trades) == 0:
+            logger.warning("No trades to export")
+            return {
+                "success": False,
+                "error": "No trades to export"
+            }
+        
+        # Convert trades to DataFrame
+        trades_df = pd.DataFrame(trades)
+        logger.info(f"DataFrame created with columns: {list(trades_df.columns)}")
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        symbol = data.get('symbol', 'XAUUSDm')
+        filename = f"backtest_{symbol}_{timestamp}.csv"
+        filepath = export_dir / filename
+        
+        # Save to CSV
+        trades_df.to_csv(filepath, index=False)
+        logger.info(f"Backtest exported successfully to {filepath}")
+        
+        return {
+            "success": True,
+            "filename": filename,
+            "filepath": str(filepath.absolute()),
+            "trades_count": len(trades_df)
+        }
+            
+    except Exception as e:
+        logger.error(f"Export error: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 # ===== ROOT =====
 
 @app.get("/", tags=["Root"])
@@ -429,10 +578,11 @@ async def root():
 
 
 # Initialize function (called from main.py)
-def init_api(bot, tm, db):
+def init_api(bot, tm, db, bt=None):
     """Initialize API with trading bot instances"""
-    global trading_bot, terminal_manager, db_manager
+    global trading_bot, terminal_manager, db_manager, backtest_engine
     trading_bot = bot
     terminal_manager = tm
     db_manager = db
+    backtest_engine = bt
     logger.info("API initialized with trading bot instances")

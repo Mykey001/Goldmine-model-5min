@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from main import LiveTradingBot
 from api.rest_api import app, init_api
 from api.websocket_server import ws_manager, websocket_endpoint
+from backtest_engine import BacktestEngine
 from utils.logger import setup_logger
 from utils.config import config
 
@@ -59,9 +60,13 @@ def main():
     bot = LiveTradingBot()
     bot.set_websocket_manager(ws_manager)
     
+    # Initialize backtest engine
+    logger.info("Initializing backtest engine...")
+    backtest_engine = BacktestEngine(config.MODEL_PATH)
+    
     # Initialize API with bot instances
     logger.info("Initializing API...")
-    init_api(bot, bot.terminal_manager, bot.db)
+    init_api(bot, bot.terminal_manager, bot.db, backtest_engine)
     
     # Add WebSocket endpoint to FastAPI app
     @app.websocket("/ws")
